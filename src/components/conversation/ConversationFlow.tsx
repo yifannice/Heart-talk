@@ -212,9 +212,9 @@ const ConversationFlow: React.FC = () => {
   const lastAiAbsIdx = lastAiIdx === -1 ? -1 : visibleMessages.length - 1 - lastAiIdx;
 
   return (
-    <div className="w-full max-w-2xl mx-auto py-8">
+    <div className="w-full">
       <h2 className="text-2xl font-bold mb-4 text-center">AI 沟通引导</h2>
-      <div className="bg-gray-50 rounded-xl p-6 min-h-[340px] mb-4">
+      <div className="bg-white rounded-xl p-6 min-h-[340px] mb-4 shadow-lg">
         {visibleMessages.map((msg, idx) => (
           <ChatBubble
             key={idx}
