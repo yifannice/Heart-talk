@@ -42,9 +42,9 @@ const KeyConversationPage: React.FC = () => {
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">3个心法，让高风险对话稳如老狗</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
             <MethodCard
-              icon={<Brain className="h-10 w-10 text-purple-500" />}
+              icon={<Brain className="h-8 w-8 text-purple-500" />}
               title="先管心情，再谈事情"
               steps={[
                 "我到底想要什么？",
@@ -53,7 +53,7 @@ const KeyConversationPage: React.FC = () => {
               ]}
             />
             <MethodCard
-              icon={<Shield className="h-10 w-10 text-purple-500" />}
+              icon={<Shield className="h-8 w-8 text-purple-500" />}
               title="用事实当'灭火器'"
               steps={[
                 "把'你根本不关心家！'换成：",
@@ -62,7 +62,7 @@ const KeyConversationPage: React.FC = () => {
               ]}
             />
             <MethodCard
-              icon={<Target className="h-10 w-10 text-purple-500" />}
+              icon={<Target className="h-8 w-8 text-purple-500" />}
               title="把辩论变成拼图游戏"
               steps={[
                 "与其说'我的方案更好'，不如问：",
