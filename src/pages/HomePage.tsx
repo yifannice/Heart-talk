@@ -8,7 +8,7 @@ const HomePage: React.FC = () => {
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-purple-600 to-purple-400 text-white py-20">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">
+          <h1 className="text-3xl md:text-4xl font-bold mb-6">
             让每一次关键对话，都成为关系升级的跳板
           </h1>
           <p className="text-xl md:text-2xl mb-12 max-w-3xl mx-auto">
