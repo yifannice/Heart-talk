@@ -1,8 +1,13 @@
 import axios from 'axios';
 import { ConversationState } from '../types/conversation';
 
-const API_KEY = 'sk-4f76ba4a05d54cd7b460a7ebab174a3e';
-const API_URL = 'https://api.deepseek.com/v1/chat/completions';
+const API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY;
+const API_URL = import.meta.env.VITE_DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions';
+
+// 检查API_KEY是否设置
+if (!API_KEY) {
+  throw new Error('VITE_DEEPSEEK_API_KEY 环境变量未设置。请在 .env 文件中设置您的 Deepseek API 密钥。');
+}
 
 const axiosInstance = axios.create({
   baseURL: API_URL,
