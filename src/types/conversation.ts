@@ -11,6 +11,19 @@ export enum ConversationStep {
 
 export type GoalType = 'self' | 'other' | 'relationship';
 
+export interface DialogueSuggestion {
+  suggestions: string[];
+  safetyLevel: 'safe' | 'caution' | 'unsafe';
+  nextSteps: string[];
+}
+
+export interface DiagnosisData {
+  currentEmotion: string;
+  desiredOutcome: string;
+  expectedResponse: string;
+  additionalNotes?: string;
+}
+
 export interface ConversationState {
   selfAwareness: {
     emotions: string;
@@ -41,11 +54,14 @@ export interface ConversationState {
     strategy: string;
     outcome: string;
   };
-  currentStep: ConversationStep;
+  currentStep: string;
   nonviolentMessages: string[];
   analysis: string;
   recommendation: string;
   conflictSituation: string;
+  diagnosisData: DiagnosisData;
+  aiSuggestions: DialogueSuggestion | null;
+  isLoading: boolean;
 }
 
 export interface ConflictFeatures {

@@ -1,262 +1,253 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useConversation } from '../../hooks/useConversation';
-import ChatBubble from './ChatBubble';
-import { generateConversationResponse } from '../../services/ai';
-import { conversationContent } from '../../config/conversationContent';
-import { guidanceContent } from '../../config/guidanceContent';
-import { formatGuidance } from '../../utils/contentFormatter';
+import React, { useState } from 'react';
+import DiagnosisForm, { DiagnosisData } from './DiagnosisForm';
+import StateTemplate from './StateTemplate';
+import SafetyMonitor from './SafetyMonitor';
+import { analyzeEmotion, generateDialogueSuggestions, generatePersonalizedTemplate } from '../../services/aiService';
 
-// 6步流程配置，每步包含提问、反馈、鼓励、建议生成逻辑
-const steps = [
-  {
-    title: conversationContent.steps.selfAwareness.title,
-    aiPrompt: () => conversationContent.steps.selfAwareness.prompts.initial,
-  },
-  {
-    title: conversationContent.steps.clearGoals.title,
-    aiPrompt: () => conversationContent.steps.clearGoals.prompts.initial,
-    getNextPrompt: (subStep: number) => {
-      // 第一个问题：你真正想要的是什么？
-      if (subStep <= 3) {
-        return conversationContent.steps.clearGoals.prompts.followUps.desire[subStep];
-      }
-      // 第二个问题：你希望通过这次对话达成什么目标？
-      else if (subStep <= 7) {
-        return conversationContent.steps.clearGoals.prompts.followUps.goal[subStep - 4];
-      }
-      // 第三个问题：你希望对方在对话后有什么感受和行动？
-      else if (subStep <= 11) {
-        return conversationContent.steps.clearGoals.prompts.followUps.expectation[subStep - 8];
-      }
-      // 最后总结和确认
-      else {
-        return conversationContent.steps.clearGoals.prompts.followUps.summary;
-      }
-    }
-  },
-  {
-    title: conversationContent.steps.safetyAtmosphere.title,
-    aiPrompt: () => conversationContent.steps.safetyAtmosphere.prompts.initial,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getNextPrompt: (_subStep: number) => formatGuidance(guidanceContent.safetyAtmosphere)
-  },
-  {
-    title: conversationContent.steps.respect.title,
-    aiPrompt: () => conversationContent.steps.respect.prompts.initial,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getNextPrompt: (_subStep: number) => formatGuidance(guidanceContent.respect)
-  },
-  {
-    title: conversationContent.steps.fiveStepMethod.title,
-    aiPrompt: () => conversationContent.steps.fiveStepMethod.prompts.initial,
-  },
-  {
-    title: conversationContent.steps.conflictHandling.title,
-    aiPrompt: () => conversationContent.steps.conflictHandling.prompts.initial,
-  },
-];
-
-const shouldProceed = (input: string, subStep: number, step: number) => {
-  const endWords = ['没有了', '暂时这样', '就这些', '没了', '没什么了'];
-  // 第二步有12个子步骤（3个主要问题，每个问题4个追问）
-  if (step === 1) {
-    return endWords.some(word => input.includes(word)) || subStep >= 11;
-  }
-  return endWords.some(word => input.includes(word)) || subStep >= 2;
-};
+interface DialogueSuggestion {
+  riskLevel: 'high' | 'medium' | 'low';
+  strategyTags: string[];
+  suggestions: string[];
+}
 
 const ConversationFlow: React.FC = () => {
-  const { messages, addMessage, step, setStep, subStep, setSubStep } = useConversation();
-  const [input, setInput] = useState('');
-  const [aiTyping, setAiTyping] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const initialized = useRef(false);
+  const [activeModule, setActiveModule] = useState<'diagnosis' | 'template' | 'monitor'>('diagnosis');
+  const [diagnosisData, setDiagnosisData] = useState<DiagnosisData | null>(null);
+  const [template, setTemplate] = useState<string>('');
+  const [inputText, setInputText] = useState<string>('');
+  const [suggestion, setSuggestion] = useState<string>('');
+  const [aiSuggestions, setAiSuggestions] = useState<DialogueSuggestion | null>(null);
+  const [emotionAnalysis, setEmotionAnalysis] = useState<{sentiment: string; intensity: number} | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
 
-  // 初始AI提问，只执行一次
-  useEffect(() => {
-    if (!initialized.current && messages.length === 0) {
-      const firstPrompt = steps[0].aiPrompt();
-      addMessage({ role: 'ai', content: firstPrompt, step: 0, subStep: 0 });
-      setAiTyping(true);
-      initialized.current = true;
-    }
-    // eslint-disable-next-line
-  }, []);
-
-  // 用户提交答案
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-    
-    // 添加用户消息
-    addMessage({ role: 'user', content: input, step, subStep });
-    setInput('');
-    
-    // 显示loading状态
-    setIsLoading(true);
-    
-    // 准备历史消息
-    const previousMessages = messages.map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }));
-    
+  const handleDiagnosisComplete = async (data: DiagnosisData) => {
+    setDiagnosisData(data);
     try {
-      // 调用AI生成回复
-      const aiResponse = await generateConversationResponse(
-        input,
-        step,
-        subStep,
-        previousMessages
-      );
-      
-      // 添加AI回复
-      addMessage({ 
-        role: 'ai', 
-        content: aiResponse, 
-        step, 
-        subStep: subStep + 1 
-      });
-      setAiTyping(true);
+      setIsLoading(true);
+      setShowSuggestions(false);
+      const suggestions = await generateDialogueSuggestions(data);
+      console.log('设置AI建议:', suggestions);
+      setAiSuggestions(suggestions);
+      setTimeout(() => setShowSuggestions(true), 100);
     } catch (error) {
-      console.error('AI响应生成失败:', error);
-      // 添加错误提示
-      addMessage({ 
-        role: 'ai', 
-        content: '抱歉，我遇到了一些问题。请稍后再试。', 
-        step, 
-        subStep: subStep + 1 
+      console.error('获取AI建议失败:', error);
+      setAiSuggestions({
+        riskLevel: 'medium',
+        strategyTags: ['情绪安抚优先', '事实导向沟通'],
+        suggestions: [
+          '建议使用更温和的表达方式',
+          '注意倾听对方的观点',
+          '保持开放和尊重的态度'
+        ]
       });
-      setAiTyping(true);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // AI气泡打字机动画结束后
-  const handleTypingEnd = () => {
-    setAiTyping(false);
-    // 如果刚反馈完且不是最后一步，自动进入下一步AI提问
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg && lastMsg.role === 'ai' && lastMsg.subStep === subStep + 1) {
-      if (step === 0) {
-        if (shouldProceed(input, subStep, step)) {
-          setTimeout(() => {
-            setStep(1);
-            setSubStep(0);
-            const nextPrompt = steps[1].aiPrompt();
-            addMessage({ role: 'ai', content: nextPrompt, step: 1, subStep: 0 });
-            setAiTyping(true);
-          }, 800);
-        } else {
-          setSubStep(subStep + 1);
+  const handleTemplateComplete = async (generatedTemplate: string) => {
+    if (diagnosisData) {
+      try {
+        setIsLoading(true);
+        setShowSuggestions(false);
+        const personalizedTemplate = await generatePersonalizedTemplate(diagnosisData, generatedTemplate);
+        setTemplate(personalizedTemplate.template);
+        setTimeout(() => setShowSuggestions(true), 100);
+      } catch (error) {
+        setTemplate(generatedTemplate);
+        console.error('生成个性化模板失败:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setTemplate(generatedTemplate);
+    }
+  };
+
+  const handleInputChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setInputText(text);
+    
+    if (text.trim().length > 0) {
+      try {
+        setIsLoading(true);
+        setShowSuggestions(false);
+        const analysis = await analyzeEmotion(text);
+        setEmotionAnalysis({
+          sentiment: analysis.sentiment,
+          intensity: analysis.intensity
+        });
+        if (analysis.suggestions.length > 0) {
+          setSuggestion(analysis.suggestions[0]);
         }
-      } else if (step === 1) {
-        // 第二步的特殊处理
-        if (shouldProceed(input, subStep, step)) {
-          setTimeout(() => {
-            setStep(2);
-            setSubStep(0);
-            const nextPrompt = steps[2].aiPrompt();
-            addMessage({ role: 'ai', content: nextPrompt, step: 2, subStep: 0 });
-            setAiTyping(true);
-          }, 800);
-        } else {
-          setSubStep(subStep + 1);
-          const nextPrompt = steps[1].getNextPrompt?.(subStep + 1) || '你觉得还有什么需要补充的吗？';
-          setTimeout(() => {
-            addMessage({ role: 'ai', content: nextPrompt, step: 1, subStep: subStep + 1 });
-            setAiTyping(true);
-          }, 800);
-        }
-      } else if (step === 2) {
-        // 第三步的特殊处理：直接显示指导知识
-        setTimeout(() => {
-          const guideContent = steps[2].getNextPrompt?.(0) || '';
-          addMessage({ role: 'ai', content: guideContent, step: 2, subStep: 1 });
-          setAiTyping(true);
-          // 显示完指导知识后，自动进入下一步
-          setTimeout(() => {
-            setStep(3);
-            setSubStep(0);
-            const nextPrompt = steps[3].aiPrompt();
-            addMessage({ role: 'ai', content: nextPrompt, step: 3, subStep: 0 });
-            setAiTyping(true);
-          }, 800);
-        }, 800);
-      } else if (step < steps.length - 1) {
-        setTimeout(() => {
-          setStep(step + 1);
-          setSubStep(0);
-          const nextPrompt = steps[step + 1].aiPrompt();
-          addMessage({ role: 'ai', content: nextPrompt, step: step + 1, subStep: 0 });
-          setAiTyping(true);
-        }, 800);
+        setTimeout(() => setShowSuggestions(true), 100);
+      } catch (error) {
+        console.error('情感分析失败:', error);
+      } finally {
+        setIsLoading(false);
       }
     }
   };
 
-  // 自动聚焦输入框
-  useEffect(() => {
-    if (!aiTyping && inputRef.current) {
-      inputRef.current.focus();
+  const renderLoadingSpinner = () => (
+    <div className="flex items-center justify-center p-4">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      <span className="ml-3 text-purple-600">AI正在思考中...</span>
+    </div>
+  );
+
+  const renderSuggestions = (suggestions: DialogueSuggestion) => (
+    <div className={`bg-purple-50 p-6 rounded-2xl shadow-lg transition-all duration-500 transform ${
+      showSuggestions ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+    }`}>
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium text-purple-800">风险评级</h3>
+          <span className={`px-4 py-2 rounded-full text-sm font-medium ${
+            suggestions.riskLevel === 'high' 
+              ? 'bg-red-100 text-red-700'
+              : suggestions.riskLevel === 'medium'
+              ? 'bg-yellow-100 text-yellow-700'
+              : 'bg-green-100 text-green-700'
+          }`}>
+            {suggestions.riskLevel === 'high' ? '高风险' : suggestions.riskLevel === 'medium' ? '中风险' : '低风险'}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {suggestions.strategyTags.map((tag, index) => (
+            <span
+              key={index}
+              className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      </div>
+      <h3 className="text-lg font-medium text-purple-800 mb-4">具体建议</h3>
+      <ul className="space-y-3">
+        {suggestions.suggestions.map((suggestion, index) => (
+          <li key={index} className="text-purple-700 bg-white p-3 rounded-lg shadow-sm">
+            {suggestion}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  const renderModule = () => {
+    switch (activeModule) {
+      case 'diagnosis':
+        return (
+          <div className="space-y-6">
+            <DiagnosisForm onSubmit={handleDiagnosisComplete} />
+            {isLoading ? renderLoadingSpinner() : aiSuggestions && renderSuggestions(aiSuggestions)}
+          </div>
+        );
+      case 'template':
+        return (
+          <div className="space-y-6">
+            <StateTemplate onComplete={handleTemplateComplete} />
+            {isLoading ? renderLoadingSpinner() : template && (
+              <div className={`bg-purple-50 p-6 rounded-2xl shadow-lg transition-all duration-500 transform ${
+                showSuggestions ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+              }`}>
+                <h3 className="text-lg font-medium text-purple-800 mb-4">生成的STATE模板</h3>
+                <pre className="whitespace-pre-wrap bg-white p-4 rounded-lg shadow-sm text-purple-700">
+                  {template}
+                </pre>
+              </div>
+            )}
+          </div>
+        );
+      case 'monitor':
+        return (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h2 className="text-xl font-bold mb-4">实时安全感监测</h2>
+              <textarea
+                value={inputText}
+                onChange={handleInputChange}
+                placeholder="请输入你要表达的内容..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                rows={6}
+              />
+              <SafetyMonitor text={inputText} onSuggestion={setSuggestion} />
+              {isLoading ? renderLoadingSpinner() : emotionAnalysis && (
+                <div className={`mt-4 p-4 bg-purple-50 rounded-lg transition-all duration-500 transform ${
+                  showSuggestions ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+                }`}>
+                  <h3 className="text-sm font-medium text-purple-700 mb-2">情感分析</h3>
+                  <p className="text-sm text-purple-600">
+                    情感倾向: {emotionAnalysis.sentiment === 'positive' ? '积极' : 
+                             emotionAnalysis.sentiment === 'negative' ? '消极' : '中性'}
+                  </p>
+                  <p className="text-sm text-purple-600">
+                    强度: {emotionAnalysis.intensity * 100}%
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {suggestion && (
+              <div className={`bg-purple-50 p-6 rounded-2xl shadow-lg transition-all duration-500 transform ${
+                showSuggestions ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+              }`}>
+                <h3 className="text-lg font-medium text-purple-800 mb-4">改进建议</h3>
+                <p className="text-purple-700 bg-white p-3 rounded-lg shadow-sm">{suggestion}</p>
+              </div>
+            )}
+          </div>
+        );
+      default:
+        return null;
     }
-  }, [aiTyping, step]);
-
-  // 只显示当前及之前的对话
-  const visibleMessages = messages.filter(m => m.step <= step);
-
-  // 找到最后一条AI消息的索引
-  const lastAiIdx = [...visibleMessages].reverse().findIndex(m => m.role === 'ai');
-  const lastAiAbsIdx = lastAiIdx === -1 ? -1 : visibleMessages.length - 1 - lastAiIdx;
+  };
 
   return (
-    <div className="w-full">
-      <h2 className="text-2xl font-bold mb-4 text-center">AI 沟通引导</h2>
-      <div className="bg-white rounded-xl p-6 min-h-[340px] mb-4 shadow-lg">
-        {visibleMessages.map((msg, idx) => (
-          <ChatBubble
-            key={idx}
-            role={msg.role}
-            content={msg.content}
-            typing={msg.role === 'ai' && idx === lastAiAbsIdx && aiTyping}
-            onTypingEnd={msg.role === 'ai' && idx === lastAiAbsIdx && aiTyping ? handleTypingEnd : undefined}
-          />
-        ))}
-        {isLoading && (
-          <div className="flex items-center justify-center mt-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600">AI正在思考...</span>
-          </div>
-        )}
+    <div className="max-w-7xl mx-auto px-4 py-8 mt-20">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <button
+          onClick={() => setActiveModule('diagnosis')}
+          className={`p-6 rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-105 ${
+            activeModule === 'diagnosis'
+              ? 'bg-purple-500 text-white'
+              : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+          }`}
+        >
+          <h3 className="text-xl font-bold mb-2">对话诊断</h3>
+          <p className="text-sm opacity-90">通过5步极简问诊，快速识别对话情境和风险级别</p>
+        </button>
+
+        <button
+          onClick={() => setActiveModule('template')}
+          className={`p-6 rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-105 ${
+            activeModule === 'template'
+              ? 'bg-purple-500 text-white'
+              : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+          }`}
+        >
+          <h3 className="text-xl font-bold mb-2">STATE五步法</h3>
+          <p className="text-sm opacity-90">基于STATE方法，生成结构化的表达模板</p>
+        </button>
+
+        <button
+          onClick={() => setActiveModule('monitor')}
+          className={`p-6 rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-105 ${
+            activeModule === 'monitor'
+              ? 'bg-purple-500 text-white'
+              : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+          }`}
+        >
+          <h3 className="text-xl font-bold mb-2">安全诊断</h3>
+          <p className="text-sm opacity-90">实时监测表达方式，提供改进建议</p>
+        </button>
       </div>
-      {step < steps.length && !aiTyping && (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <textarea
-            ref={inputRef}
-            className="w-full min-h-[80px] max-h-[200px] px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 text-lg resize-vertical shadow"
-            placeholder="请输入你的回答..."
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            disabled={aiTyping || isLoading}
-            autoFocus
-            rows={4}
-          />
-          <button
-            type="submit"
-            className="self-end px-8 py-3 rounded-xl bg-blue-600 text-white font-semibold text-lg hover:bg-blue-700 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!input.trim() || aiTyping || isLoading}
-          >
-            {isLoading ? '等待AI响应...' : '发送'}
-          </button>
-        </form>
-      )}
-      {step === steps.length - 1 && !aiTyping && (
-        <div className="mt-6 text-center text-green-700 font-semibold">
-          恭喜你完成了全部沟通引导！可以回顾对话内容，或重新开始。
-        </div>
-      )}
+
+      <div className="bg-white rounded-2xl shadow-lg p-8 transition-all duration-300">
+        {renderModule()}
+      </div>
     </div>
   );
 };
