@@ -144,7 +144,7 @@ const KeyConversationPage: React.FC = () => {
             to="/conversation"
             className="inline-block bg-white text-purple-600 font-semibold px-12 py-6 rounded-2xl shadow-xl hover:bg-purple-50 transition-all duration-300 transform hover:scale-105 text-xl"
           >
-            开始问诊
+            开始沟通
           </Link>
         </div>
       </section>
