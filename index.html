@@ -1,10 +1,91 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Communication Assistant</title>
+    
+    <!-- 性能优化 -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="AI Communication Assistant - 让每一次关键对话，都成为关系升级的跳板">
+    
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="/src/main.tsx" as="script">
+    <link rel="preload" href="/src/index.css" as="style">
+    
+    <!-- 预连接关键域名 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- 预加载关键字体 -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" as="style">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap">
+    
+    <!-- 关键CSS内联 -->
+    <style>
+      /* 关键渲染路径CSS - 确保LCP元素快速渲染 */
+      body {
+        margin: 0;
+        font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-display: swap;
+      }
+      
+      /* 首屏关键内容样式 */
+      .hero-section {
+        background: linear-gradient(to right, #9333ea, #a855f7);
+        color: white;
+        padding: 5rem 0;
+        text-align: center;
+        content-visibility: auto;
+        contain-intrinsic-size: 0 500px;
+      }
+      
+      .hero-title {
+        font-size: 1.875rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        line-height: 1.25;
+        text-rendering: optimizeSpeed;
+      }
+      
+      .hero-text {
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+        margin-bottom: 3rem;
+        max-width: 48rem;
+        margin-left: auto;
+        margin-right: auto;
+        text-rendering: optimizeSpeed;
+        contain: layout style paint;
+      }
+      
+      @media (min-width: 768px) {
+        .hero-title {
+          font-size: 2.25rem;
+        }
+        .hero-text {
+          font-size: 1.5rem;
+          line-height: 2rem;
+        }
+      }
+      
+      /* 容器样式 */
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+        contain: layout style;
+      }
+      
+      /* 防止布局偏移 */
+      #root {
+        min-height: 100vh;
+        contain: layout style;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

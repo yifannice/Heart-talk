@@ -8,10 +8,12 @@ import KeyConversation from './pages/KeyConversationPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 
+
 const App: React.FC = () => {
   return (
     <Router>
       <div className="min-h-screen flex flex-col">
+
         <Navbar />
         <main className="flex-grow">
           <Routes>
